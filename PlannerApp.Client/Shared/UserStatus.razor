@@ -1,0 +1,16 @@
+﻿@inject AuthenticationStateProvider authStateProvider
+@inject NavigationManager NavigationManager
+<AuthorizeView>
+    <span>Welcome @context.User.FindFirst("FirstName").Value </span> &nbsp;
+    <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Logout" Click="logout"></RadzenButton>
+</AuthorizeView>
+@code{
+
+    async Task logout()
+    {
+        var localStateProvider = (LocalAuthenticationStateProvider)authStateProvider;
+        await localStateProvider.LogoutAsync();
+        NavigationManager.NavigateTo("auth/login");
+    }
+
+}

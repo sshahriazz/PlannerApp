@@ -1,9 +1,11 @@
 @using Microsoft.AspNetCore.Authorization
-
+@using PlannerApp.Client.Pages.Auth
 <Router AppAssembly="@typeof(Program).Assembly">
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" >
-
+            <NotAuthorized>
+               <RedirectToLogIn />
+            </NotAuthorized>
         </AuthorizeRouteView>
     </Found>
     <NotFound>

@@ -1,11 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.IO;
 using System.Text;
 
 namespace PlannerApp.Shared.Models
 {
-    class PlanRequest
+    public class PlanRequest
     {
-        
+        [Required]
+        [StringLength(100)]
+        public string Title { get; set; }
+        [Required]
+        [StringLength(256)]
+        public string Description { get; set; }
+        public Stream CoverFile { get; set; }
+
+        public string FileName { get; set; }
     }
 }

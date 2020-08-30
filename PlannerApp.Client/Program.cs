@@ -6,7 +6,7 @@ using PlannerApp.Shared.Services;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
-
+using Tewr.Blazor.FileReader;
 namespace PlannerApp.Client
 {
     public class Program
@@ -23,9 +23,13 @@ namespace PlannerApp.Client
             {
                 return new PlansService(URL);
             });
+            builder.Services.AddFileReaderService(options =>
+            {
+                options.UseWasmSharedBuffer = true;
+            });
             builder.Services.AddBlazoredLocalStorage();
             builder.RootComponents.Add<App>("app");
-                       
+
             builder.Services.AddOptions();
 
             builder.Services.AddAuthorizationCore();

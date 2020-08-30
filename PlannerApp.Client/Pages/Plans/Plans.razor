@@ -4,60 +4,66 @@
 
 @attribute [Authorize]
 
-
-<h3>My Plans</h3>
-@if (isBusy)
+@if (string.IsNullOrWhiteSpace(Query))
 {
-    <h4>Loading...</h4>
+    <h3>My Plans</h3>
 }
 else
 {
-<div class="row">
-    <RadzenTextBox Placeholder="Search Query" />
-</div>
+    <h3>My Plans - Results for @Query - Page: @PageNumber</h3>
+}
+@if (isBusy)
+{
+    <Loading/>
+}
+else
+{
+    <div class="row">
+        <RadzenTextBox @bind-Value="Query" Placeholder="Search Query" /> <RadzenButton Text="Search" Click="async () => await getPlansAsync()" />
+    </div>
 
-<br />
+    <br />
 
-<div class="row">
+    <div class="row">
 
-    @foreach (var plan in plans)
-    {
-        <div class="col-4">
-            <RadzenCard Style="margin:10px">
-                <img src="@plan.CoverPath" style="height:100px; margin: 5px;" />
-                <h2>@plan.Title</h2>
-                <p>@plan.Description</p>
-                <div class="row">
-                    <div class="col-6">
-                        <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit" class="btn-block" />
-                    </div>
-                    <div class="col-6">
-                        <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Delete" class="btn-block" />
-                    </div>
-                </div>
-            </RadzenCard>
-        </div>
-    }
-
-
-</div>
-<hr />
-<div class="row">
-    @for (int i = 1; i <= totalPages; i++)
-    {
-        int pages = i;
-        @if (pages == PageNumber)
+        @foreach (var plan in plans)
         {
-            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@pages.ToString()" Click="async ()=> await moveToPageAsync(pages)" Disabled="true" Style="margin:8px;" />
-        }
-        else
-        {
-            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@pages.ToString()" Click="async ()=> await moveToPageAsync(pages)" Style="margin:8px;" />
+            <div class="col-4">
+                <RadzenCard Style="margin:10px">
+                    <img src="@plan.CoverPath" style="height:100px; margin: 5px;" />
+                    <h2>@plan.Title</h2>
+                    <p>@plan.Description</p>
+                    <div class="row">
+                        <div class="col-6">
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit" class="btn-block" />
+                        </div>
+                        <div class="col-6">
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Delete" class="btn-block" />
+                        </div>
+                    </div>
+                </RadzenCard>
+            </div>
         }
 
-    }
 
-</div>
+    </div>
+    <hr />
+    <div class="row">
+        @for (int i = 1; i <= totalPages; i++)
+        {
+            int pages = i;
+            @if (pages == PageNumber)
+            {
+                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@pages.ToString()" Click="async ()=> await moveToPageAsync(pages)" Disabled="true" Style="margin:8px;" />
+            }
+            else
+            {
+                <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="@pages.ToString()" Click="async ()=> await moveToPageAsync(pages)" Style="margin:8px;" />
+            }
+
+        }
+
+    </div>
 }
 
 @code {
@@ -65,7 +71,8 @@ else
     public int? PageNumber { get; set; }
     bool isBusy = false;
     List<Plan> plans = new List<Plan>();
-
+    [Parameter]
+    public string Query { get; set; }
 
     [CascadingParameter]
     private Task<AuthenticationState> authenticationState { get; set; }
@@ -81,8 +88,17 @@ else
 
         if (PageNumber == null)
             PageNumber = 1;
-        var result = await PlansService.GetAllPlansByPageAsync(PageNumber.Value);
-        if(result.Count % result.PageSize == 0)
+        PlansCollectionPagingResponse result;
+        if (string.IsNullOrWhiteSpace(Query))
+        {
+            result = await PlansService.GetAllPlansByPageAsync(PageNumber.Value);
+        }
+        else
+        {
+            result = await PlansService.SearchPlansByPageAsync(Query, PageNumber.Value);
+        }
+
+        if (result.Count % result.PageSize == 0)
         {
             totalPages = result.Count / result.PageSize;
         }

@@ -1,0 +1,152 @@
+﻿@page "/plans/details/{Id}"
+
+@inject PlansService plansService
+@inject IFileReaderService fileRenderService
+@inject NavigationManager navigationManager
+
+@attribute [Authorize]
+
+<h3>Plan @model.Title</h3>
+
+<div class="row">
+    <div class="col-6">
+        <EditForm Model="model" OnValidSubmit="editAsync">
+            <AlertMessage Message="@message" MessageType="@messageType" />
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+            <RadzenCard>
+                <RadzenTextBox @bind-Value="model.Title" 
+                               Placeholder="Title" 
+                               Style="margin:10px" 
+                               />
+                <RadzenTextBox @bind-Value="model.Description" 
+                               Placeholder="Description" 
+                               Style="margin:10px" 
+                               />
+                <input type="file" 
+                       @ref="_inputElementReference" 
+                       style="margin:10px" 
+                       @onchange="async () => await choseFileAsync()" 
+                       />
+                <img src="@imageContent" 
+                     style="width:100%;margin:10px" 
+                     />
+
+                <hr />
+
+                <RadzenButton class="btn btn-block"
+                              Text="Edit"
+                              ButtonStyle="Radzen.ButtonStyle.Success"
+                              ButtonType="Radzen.ButtonType.Submit"
+                              Style="margin: 5px"
+                              Disabled="isBysy" />
+            </RadzenCard>
+        </EditForm>
+    </div>
+    <div class="col-6">
+        <RadzenCard>
+            <h2>Plans Items.</h2>
+        </RadzenCard>
+    </div>
+</div>
+
+@code {
+    //getting auth state
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+
+    [Parameter]
+    public string Id { get; set; }
+
+    PlanRequest model = new PlanRequest();
+    System.IO.Stream fileStream = null;
+    string imageContent = string.Empty;
+    string fileName = string.Empty;
+    ElementReference _inputElementReference;
+
+    bool isBysy = false;
+
+    //alert
+    string message = String.Empty;
+    Models.AlertMessageType messageType = Models.AlertMessageType.Success;
+
+
+    async Task choseFileAsync()
+    {
+        var file = (await fileRenderService.CreateReference(_inputElementReference).EnumerateFilesAsync()).FirstOrDefault();
+
+        var fileInfo = await file.ReadFileInfoAsync();
+
+        //set file name
+        fileName = fileInfo.Name;
+
+        string extension = System.IO.Path.GetExtension(fileInfo.Name);
+        var allowedExtensions = new string[] { ".jpeg", ".jpg", ".png", ".bmp" };
+
+        if (!allowedExtensions.Contains(extension))
+        {
+            message = "The chosen file is not a valid image file";
+            messageType = Models.AlertMessageType.Error;
+            return;
+        }
+        message = null;
+
+        using (var memoryStream = await file.CreateMemoryStreamAsync())
+        {
+            fileStream = new System.IO.MemoryStream(memoryStream.ToArray());
+            imageContent = $"data:{fileInfo.Type};base64, { Convert.ToBase64String(memoryStream.ToArray())}";
+        }
+
+    }
+
+    async Task editAsync()
+    {
+        isBysy = true;
+
+        model.CoverFile = fileStream;
+        model.FileName = fileName;
+        var result = await plansService.PostPlanAsync(model);
+
+        if (result.IsSuccess)
+        {
+            message = "Plan edited successfully";
+            messageType = Models.AlertMessageType.Success;
+        }
+        else
+        {
+            message = result.Message;
+            messageType = Models.AlertMessageType.Error;
+        }
+
+        isBysy = false;
+    }
+
+    async Task GetPlanById()
+    {
+        isBysy = true;
+
+        var result = await plansService.GetPlansByIdAsync(Id);
+        if (result.IsSuccess)
+        {
+            model.Title = result.Record.Title;
+            model.Description = result.Record.Description;
+            imageContent = result.Record.CoverPath;
+            model.Id = Id;
+        }
+        else
+        {
+            message = result.Message;
+            messageType = Models.AlertMessageType.Error;
+        }
+
+        isBysy = false;
+    }
+    protected async override Task OnInitializedAsync()
+    {
+        var userState = authenticationState.Result;
+        plansService.AccessToken = userState.User.FindFirst("AccessToken").Value;
+
+        await GetPlanById();
+    }
+
+}

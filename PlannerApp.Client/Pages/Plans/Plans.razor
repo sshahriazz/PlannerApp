@@ -1,6 +1,7 @@
 ﻿@page "/plans"
 @page "/plans/{PageNumber:int}"
 @inject PlansService PlansService
+@inject NavigationManager navigationManager
 
 @attribute [Authorize]
 
@@ -33,14 +34,20 @@ else
                     <img src="@plan.CoverPath" style="height:100px; margin: 5px;" />
                     <h2>@plan.Title</h2>
                     <p>@plan.Description</p>
+                    <hr />
                     <div class="row">
                         <div class="col-6">
-                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit" class="btn-block" />
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Success" Text="Edit" Click='()=>navigationManager.NavigateTo($"plans/details/{plan.Id}")' class="btn-block" />
                         </div>
-                        <div class="col-6">
-                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Danger" Text="Delete" class="btn-block" />
-                        </div>
+
                     </div>
+                    @if (selectedPlanId == plan.Id)
+                    {
+                        <div class="row">
+                            <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="Confirm Delete" class="btn-block" />
+                        </div>
+                    }
+
                 </RadzenCard>
             </div>
         }
@@ -115,7 +122,11 @@ else
         PageNumber = pageNumber;
         await getPlansAsync();
     }
-
+    string selectedPlanId = string.Empty;
+    void selectPlanById(string id)
+    {
+        selectedPlanId = id;
+    }
 
     protected override async Task OnInitializedAsync()
     {

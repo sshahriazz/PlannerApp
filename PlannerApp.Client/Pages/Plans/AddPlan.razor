@@ -10,13 +10,13 @@
 
 <div class="row">
     <div class="col-6">
-        <EditForm Model="model">
+        <EditForm Model="model" OnValidSubmit="postPlanAsync">
             <AlertMessage Message="@message" MessageType="@messageType"/>
             <DataAnnotationsValidator />
             <ValidationSummary />
             <RadzenCard>
-                <RadzenTextBox Placeholder="Title" Style="margin:10px" />
-                <RadzenTextBox Placeholder="Description" Style="margin:10px" />
+                <RadzenTextBox @bind-Value="model.Title" Placeholder="Title" Style="margin:10px" />
+                <RadzenTextBox @bind-Value="model.Description" Placeholder="Description" Style="margin:10px" />
                 <input type="file" @ref="_inputElementReference" style="margin:10px" @onchange="async () => await choseFileAsync()" />
                 <img src="@imageContent" style="width:100%;margin:10px" />
                 <hr />
@@ -24,29 +24,41 @@
                               Text="Insert"
                               ButtonStyle="Radzen.ButtonStyle.Success"
                               ButtonType="Radzen.ButtonType.Submit"
-                              Style="margin: 5px" />
+                              Style="margin: 5px"
+                              Disabled="isBysy"
+                              />
             </RadzenCard>
         </EditForm>
     </div>
 </div>
 
 @code {
+    //getting auth state
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationState { get; set; }
+
     PlanRequest model = new PlanRequest();
     System.IO.Stream fileStream = null;
     string imageContent = string.Empty;
     string fileName = string.Empty;
+    ElementReference _inputElementReference;
+
+    bool isBysy = false;
 
     //alert
     string message = String.Empty;
     Models.AlertMessageType messageType = Models.AlertMessageType.Success;
 
-    ElementReference _inputElementReference;
 
     async Task choseFileAsync()
     {
         var file = (await fileRenderService.CreateReference(_inputElementReference).EnumerateFilesAsync()).FirstOrDefault();
 
         var fileInfo = await file.ReadFileInfoAsync();
+
+        //set file name
+        fileName = fileInfo.Name;
+
         string extension = System.IO.Path.GetExtension(fileInfo.Name);
         var allowedExtensions = new string[] { ".jpeg",".jpg",".png",".bmp"};
 
@@ -64,6 +76,29 @@
             imageContent = $"data:{fileInfo.Type};base64, { Convert.ToBase64String(memoryStream.ToArray())}";
         }
 
+    }
+
+    async Task postPlanAsync()
+    {
+        isBysy = true;
+
+        var userState = authenticationState.Result;
+        plansService.AccessToken = userState.User.FindFirst("AccessToken").Value;
+        model.CoverFile = fileStream;
+        model.FileName = fileName;
+        var result = await plansService.PostPlanAsync(model);
+
+        if (result.IsSuccess)
+        {
+            navigationManager.NavigateTo("/plans");
+        }
+        else
+        {
+            message = result.Message;
+            messageType = Models.AlertMessageType.Error;
+        }
+
+        isBysy = false;
     }
 
 }

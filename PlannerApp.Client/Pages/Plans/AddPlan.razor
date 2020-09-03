@@ -11,21 +11,20 @@
 <div class="row">
     <div class="col-6">
         <EditForm Model="model">
+            <AlertMessage Message="@message" MessageType="@messageType"/>
             <DataAnnotationsValidator />
-            <ValidationSummary/>
+            <ValidationSummary />
             <RadzenCard>
                 <RadzenTextBox Placeholder="Title" Style="margin:10px" />
-                <RadzenTextBox Placeholder="Description" Style="margin:10px"/>
-                <input type="file" style="margin:10px"/>
-                <img src="" style="width:100%;margin:10px" />
+                <RadzenTextBox Placeholder="Description" Style="margin:10px" />
+                <input type="file" @ref="_inputElementReference" style="margin:10px" @onchange="async () => await choseFileAsync()" />
+                <img src="@imageContent" style="width:100%;margin:10px" />
                 <hr />
-                <RadzenButton 
-                              class="btn btn-block"
+                <RadzenButton class="btn btn-block"
                               Text="Insert"
                               ButtonStyle="Radzen.ButtonStyle.Success"
                               ButtonType="Radzen.ButtonType.Submit"
-                              Style="margin: 5px"
-                              />
+                              Style="margin: 5px" />
             </RadzenCard>
         </EditForm>
     </div>
@@ -33,4 +32,38 @@
 
 @code {
     PlanRequest model = new PlanRequest();
+    System.IO.Stream fileStream = null;
+    string imageContent = string.Empty;
+    string fileName = string.Empty;
+
+    //alert
+    string message = String.Empty;
+    Models.AlertMessageType messageType = Models.AlertMessageType.Success;
+
+    ElementReference _inputElementReference;
+
+    async Task choseFileAsync()
+    {
+        var file = (await fileRenderService.CreateReference(_inputElementReference).EnumerateFilesAsync()).FirstOrDefault();
+
+        var fileInfo = await file.ReadFileInfoAsync();
+        string extension = System.IO.Path.GetExtension(fileInfo.Name);
+        var allowedExtensions = new string[] { ".jpeg",".jpg",".png",".bmp"};
+
+        if (!allowedExtensions.Contains(extension))
+        {
+            message = "The chosen file is not a valid image file";
+            messageType = Models.AlertMessageType.Error;
+            return;
+        }
+        message = null;
+
+        using (var memoryStream = await file.CreateMemoryStreamAsync())
+        {
+            fileStream = new System.IO.MemoryStream(memoryStream.ToArray());
+            imageContent = $"data:{fileInfo.Type};base64, { Convert.ToBase64String(memoryStream.ToArray())}";
+        }
+
+    }
+
 }

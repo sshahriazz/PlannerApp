@@ -20,7 +20,12 @@ else
 else
 {
     <div class="row">
-        <RadzenTextBox @bind-Value="Query" Placeholder="Search Query" /> <RadzenButton Text="Search" Click="async () => await getPlansAsync()" />
+        <RadzenTextBox @bind-Value="Query" 
+                       Placeholder="Search Query" 
+                       /> 
+        <RadzenButton Text="Search" 
+                      Click="async () => await getPlansAsync()"
+                      />
     </div>
 
     <br />
@@ -49,12 +54,9 @@ else
                             <RadzenButton ButtonStyle="Radzen.ButtonStyle.Info" Text="Confirm Delete" class="btn-block" Click="async () => await deletePlanByIdAsync()" Style="margin-top:10px;"/>
                         </div>
                     }
-
                 </RadzenCard>
             </div>
         }
-
-
     </div>
     <hr />
     <div class="row">

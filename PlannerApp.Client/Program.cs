@@ -23,6 +23,10 @@ namespace PlannerApp.Client
             {
                 return new PlansService(URL);
             });
+            builder.Services.AddScoped<ToDoItemService>(s =>
+            {
+                return new ToDoItemService(URL);
+            });
             builder.Services.AddFileReaderService(options =>
             {
                 options.UseWasmSharedBuffer = true;

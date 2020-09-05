@@ -3,15 +3,16 @@
 @inject PlansService plansService
 @inject IFileReaderService fileRenderService
 @inject NavigationManager navigationManager
+@inject ToDoItemService todoItemService
 
 @attribute [Authorize]
-
+<AlertMessage Message="@message" MessageType="@messageType" />
 <h3>Plan @model.Title</h3>
 
 <div class="row">
     <div class="col-6">
-        <EditForm Model="model" OnValidSubmit="editAsync">
-            <AlertMessage Message="@message" MessageType="@messageType" />
+        <EditForm Model="model" OnValidSubmit="editPlanAsync">
+            
             <DataAnnotationsValidator />
             <ValidationSummary />
             <RadzenCard>
@@ -26,9 +27,9 @@
                 <input type="file" 
                        @ref="_inputElementReference" 
                        style="margin:10px" 
-                       @onchange="async () => await choseFileAsync()" 
+                       @onchange="async () => await choseFileAsync()"
                        />
-                <img src="@imageContent" 
+                <img src="@imageContent"
                      style="width:100%;margin:10px" 
                      />
 
@@ -46,6 +47,58 @@
     <div class="col-6">
         <RadzenCard>
             <h2>Plans Items.</h2>
+            <EditForm Model="itemModel" OnValidSubmit="submitItemAsync">
+                <DataAnnotationsValidator/>
+                <ValidationSummary/>
+                <table>
+                    <tr>
+                        <td>
+                            <RadzenButton Text="+"
+                                          Click="clearSelection"
+                                          ButtonStyle="Radzen.ButtonStyle.Secondary"
+                                          ButtonType="Radzen.ButtonType.Button" />
+                        </td>
+                        <td>
+                            <RadzenTextBox Placeholder="Item Description..."
+                                           @bind-Value="itemModel.Description" 
+                                           />
+                        </td>
+                        <td>
+                            <RadzenButton Text="Submit"
+                                          ButtonStyle="Radzen.ButtonStyle.Success"
+                                          ButtonType="Radzen.ButtonType.Submit"
+                                          Disabled="isBysy"
+                                          />
+                        </td>
+                    </tr>
+                    @foreach (var item in items)
+                    {
+                        string descriptionStyle = item.IsDone? "text-decoration-line: line-through" : "text-decoration-line: none";
+                        string rowStyle = selectedItem == item ? "cursor:pointer; background:lightblue" : "cursor: pointer; background:white";
+
+                        <tr style="@rowStyle" @onclick="() => SelectedItem(item)">
+                            <td>
+                            <RadzenCheckBox @bind-Value="item.IsDone" 
+                                            @onclick="async () => await changeItemStatusAsync(item.Id)"
+                                            Disabled="isBysy"
+                                            />
+                            </td>
+                            <td>
+                                <span style="@descriptionStyle">@item.Description</span>
+                            </td>
+                            <td>
+                            <RadzenButton Text="-"
+                                      Click="async () => await removeItem(item)"
+                                      Disabled="isBysy"
+                                      ButtonStyle="Radzen.ButtonStyle.Danger"
+                                      ButtonType="Radzen.ButtonType.Button" />
+                            </td>
+
+                            </tr>
+                    }
+                </table>
+
+            </EditForm>
         </RadzenCard>
     </div>
 </div>
@@ -99,7 +152,7 @@
 
     }
 
-    async Task editAsync()
+    async Task editPlanAsync()
     {
         isBysy = true;
 
@@ -132,6 +185,7 @@
             model.Description = result.Record.Description;
             imageContent = result.Record.CoverPath;
             model.Id = Id;
+            items = result.Record.ToDoItems.ToList(); //setting todo items for the user.
         }
         else
         {
@@ -141,12 +195,121 @@
 
         isBysy = false;
     }
+
     protected async override Task OnInitializedAsync()
     {
         var userState = authenticationState.Result;
-        plansService.AccessToken = userState.User.FindFirst("AccessToken").Value;
+        string AccessToken = userState.User.FindFirst("AccessToken").Value;
+        plansService.AccessToken = AccessToken;
+        todoItemService.AccessToken = AccessToken;
 
         await GetPlanById();
     }
+
+
+    #region Items
+
+    List<ToDoItem> items = new List<ToDoItem>();
+    ToDoItem selectedItem = null;
+
+    TodoItemRequest itemModel = new TodoItemRequest();
+
+    //edit items
+    async Task editItemAsync()
+    {
+        isBysy = true;
+        itemModel.PlanId = Id;
+        var result = await todoItemService.EditItemAsync(itemModel);
+        if (result.IsSuccess)
+        {
+            message = "Item added successfully";
+            messageType = Models.AlertMessageType.Success;
+
+            var editedItem = items.SingleOrDefault(i => i.Id == result.Record.Id);
+            editedItem.Description = result.Record.Description;
+
+        }
+        else
+        {
+            message = result.Message;
+            messageType = Models.AlertMessageType.Error;
+        }
+        isBysy = false;
+    }
+
+    //Add items
+    async Task insertItemAsync()
+    {
+        isBysy = true;
+        itemModel.PlanId = Id;
+        var result = await todoItemService.CreateItemAsync(itemModel);
+        if (result.IsSuccess)
+        {
+            message = "Item added successfully";
+            messageType = Models.AlertMessageType.Success;
+
+            items.Add(result.Record);
+
+        }
+        else
+        {
+            message = result.Message;
+            messageType = Models.AlertMessageType.Error;
+        }
+        isBysy = false;
+    }
+    async Task submitItemAsync()
+    {
+        if (selectedItem == null)
+        {
+            await insertItemAsync();
+        }
+        else
+        {
+            await editItemAsync();
+        }
+    }
+    // Update status of item.
+    async Task changeItemStatusAsync(string itemId)
+    {
+        isBysy = true;
+        var result = await todoItemService.ChangedItemStateAsync(itemId);
+        if (!result.IsSuccess)
+        {
+            //TODO: show error alrt message.
+            message = "Something is wrong";
+            messageType = Models.AlertMessageType.Warning;
+
+        }
+        isBysy = false;
+    }
+    void SelectedItem(ToDoItem item)
+    {
+        selectedItem = item;
+        itemModel.Id = item.Id;
+        itemModel.Description = item.Description;
+    }
+    void clearSelection()
+    {
+        selectedItem = null;
+        itemModel.Id = null;
+        itemModel.Description = null;
+        //TODO: show alert that the item cannot be edited if its cheched.
+    }
+    async Task removeItem(ToDoItem item)
+    {
+        isBysy = true;
+        var result = await todoItemService.DeleteItemStateAsync(item.Id);
+        if (result.IsSuccess)
+        {
+            items.Remove(item);
+        }
+        else
+        {
+            //TODO: show alert.
+        }
+        isBysy = false;
+    }
+    #endregion
 
 }

@@ -5,4 +5,9 @@
         public Plan Record { get; set; }
     }
 
+    public class ToDoItemsSingleResponse : BaseAPIResponse
+    {
+        public ToDoItem Record { get; set; }
+    }
+
 }
